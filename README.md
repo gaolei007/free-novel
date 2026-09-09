@@ -1,0 +1,88 @@
+# 小说助手
+
+基于 so-novel 书源的 Chrome 侧边栏小说搜索与 TXT 下载插件。
+
+## 功能
+
+- 支持同步 so-novel 书源到本地，并进行增量合并
+- 支持多个书源并发搜索书名和作者
+- 搜索结果按书名、作者相关性排序，不合并不同书源的同名结果
+- 搜索结果分页显示，每页 10 条
+- 支持下载整本小说并合并为 UTF-8 编码的 TXT 文件
+- 下载过程中显示章节进度，并保存下载记录
+- 支持查看下载进度、打开下载文件位置和清空记录
+- 使用 Chrome Side Panel API，跟随系统明暗主题
+
+## 技术栈
+
+- Chrome Manifest V3
+- WXT
+- Vue 3
+- TypeScript
+- Element Plus
+- Chrome Side Panel API
+- Chrome Downloads API
+
+## 开发环境
+
+- Google Chrome 109 或更高版本
+- Node.js 22
+- npm
+
+## 安装依赖
+
+```bash
+npm install
+```
+
+## 本地开发
+
+```bash
+npm run dev
+```
+
+WXT 会启动开发环境并生成 Chrome 扩展目录。
+
+## 构建扩展
+
+```bash
+npm run compile
+npm run build
+```
+
+生产构建输出到：
+
+```text
+.output/chrome-mv3
+```
+
+## 在 Chrome 中加载
+
+1. 打开 `chrome://extensions/`
+2. 开启右上角“开发者模式”
+3. 点击“加载已解压的扩展程序”
+4. 选择 `.output/chrome-mv3` 目录
+5. 点击插件图标打开侧边栏
+6. 首次使用时进入“同步书源”并点击“立即同步”
+
+## 书源
+
+当前版本只支持 so-novel 书源，默认同步地址：
+
+<https://raw.githubusercontent.com/freeok/so-novel/refs/heads/main/bundle/rules/main.json>
+
+书源仅保存在浏览器本地 `storage` 中。搜索和下载记录不会上传到服务器。
+
+## 权限说明
+
+- `storage`：保存本地书源、下载记录和下载进度
+- `sidePanel`：提供 Chrome 侧边栏界面
+- `downloads`：下载合并后的 TXT 文件
+- `offscreen`：在 Manifest V3 环境中解析网页 HTML
+- `<all_urls>`：访问各个书源网站的搜索、目录和正文页面
+
+## 注意事项
+
+书源网站的页面结构、访问限制和可用性可能随时变化。部分书源可能搜索失败或无法完整读取，插件会隐藏失败的搜索来源，并在下载记录中保存失败状态。
+
+请遵守目标网站的使用条款和相关法律法规，仅下载你有权访问和保存的内容。
