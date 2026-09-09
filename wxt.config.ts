@@ -12,7 +12,7 @@ export default defineConfig({
     // 你的插件名称
     name: '畅读小说',
     // 插件描述
-    description: '基于 so-novel 书源搜索并下载小说',
+    description: '基于 so-novel 书源的 Chrome 侧边栏小说搜索与 TXT 下载工具',
     version: '1.0.0',
     // 权限申请（后续爬虫解析会用到）
     permissions: [
