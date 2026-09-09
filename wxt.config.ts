@@ -10,13 +10,13 @@ export default defineConfig({
   // 增加/修改 manifest 配置
   manifest: {
     // 你的插件名称
-    name: '小说助手',
+    name: '畅读小说',
     // 插件描述
     description: '基于 so-novel 书源搜索并下载小说',
     version: '1.0.0',
     // 权限申请（后续爬虫解析会用到）
     permissions: [
-      'storage', 'activeTab', 'scripting', 'sidePanel', 'offscreen', 'downloads',
+      'storage', 'sidePanel', 'offscreen', 'downloads',
     ],
     // 跨域请求权限（允许插件直接抓取任意小说的网页内容）
     host_permissions: [
@@ -28,7 +28,7 @@ export default defineConfig({
     },
     // 关键点 2：点击扩展图标时的动作（不配置 default_popup）
     action: {
-      default_title: '打开小说助手',
+      default_title: '打开畅读小说',
     },
   },
 });

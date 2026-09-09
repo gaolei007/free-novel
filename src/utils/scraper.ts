@@ -1,5 +1,6 @@
 import type { BookSource } from '../types/source'
 import type { BookItem, ChapterItem } from './messages'
+import { assertSafeHttpUrl, isSafeHttpUrl } from './urlSafety'
 
 interface FetchOptions {
   method?: 'GET' | 'POST'
@@ -10,6 +11,8 @@ interface FetchOptions {
 
 /** 抓取页面 HTML（background 拥有 <all_urls> 权限，可跨域） */
 async function fetchHtml(url: string, options: FetchOptions = {}): Promise<string> {
+  assertSafeHttpUrl(url)
+  if (options.referer) assertSafeHttpUrl(options.referer, '来源地址')
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 15_000)
   try {
@@ -70,9 +73,10 @@ function extractUrl(scope: Element, rule: string, baseUrl: string): string {
   if (!raw && el) raw = el.closest('a')?.getAttribute('href') ?? ''
   if (!raw) return ''
   try {
-    return new URL(raw, baseUrl).toString()
+    const absolute = new URL(raw, baseUrl).toString()
+    return isSafeHttpUrl(absolute) ? absolute : ''
   } catch {
-    return raw
+    return ''
   }
 }
 
@@ -221,7 +225,9 @@ export async function getCatalog(source: BookSource, detailUrl: string): Promise
       doc.querySelector('a[href*="catalog"]')?.getAttribute('href')
     if (link) {
       try {
-        url = new URL(link, url).toString()
+        const nextUrl = new URL(link, url).toString()
+        if (!isSafeHttpUrl(nextUrl)) throw new Error('目录链接不是安全的 HTTP(S) 地址')
+        url = nextUrl
         doc = parseHtml(await fetchHtml(url, { referer: source.url }))
         chapters = extractChapters(doc, source, url)
       } catch {
@@ -238,7 +244,7 @@ export async function getCatalog(source: BookSource, detailUrl: string): Promise
       if (!raw) return
       try {
         const abs = new URL(raw, url).toString()
-        if (abs !== url) pages.add(abs)
+        if (isSafeHttpUrl(abs) && abs !== url) pages.add(abs)
       } catch {
         // 忽略非法链接
       }

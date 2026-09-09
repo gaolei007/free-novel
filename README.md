@@ -1,5 +1,4 @@
-# 小说助手
-
+# 畅读小说
 基于 so-novel 书源的 Chrome 侧边栏小说搜索与 TXT 下载插件。
 
 ## 功能
@@ -80,6 +79,8 @@ npm run build
 - `downloads`：下载合并后的 TXT 文件
 - `offscreen`：在 Manifest V3 环境中解析网页 HTML
 - `<all_urls>`：访问各个书源网站的搜索、目录和正文页面
+
+插件只接受 HTTP(S) 书源地址，并拒绝带认证信息及常见本机/内网地址。书源规则中的脚本字段不会执行。
 
 ## 注意事项
 

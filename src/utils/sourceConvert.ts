@@ -1,8 +1,19 @@
 import type { BookSource } from '../types/source'
+import { isSafeHttpUrl } from './urlSafety'
 
 /** 去掉 legado 模板里包裹 URL 的反引号 */
 function clean(s: unknown): string {
   return typeof s === 'string' ? s.replaceAll('`', '').trim() : ''
+}
+
+function safeSourceUrl(value: unknown): string {
+  const url = clean(value)
+  return isSafeHttpUrl(url) ? url : ''
+}
+
+function safeRuleUrl(value: unknown): string {
+  const url = clean(value)
+  return isSafeHttpUrl(url, true) ? url : ''
 }
 
 /** 去掉 legado 规则的 @js:/@java: 后缀，只保留 CSS 选择器部分 */
@@ -44,7 +55,7 @@ function isLegadoSource(obj: Record<string, unknown>): boolean {
 /** 「阅读」(legado) 格式 → 本应用 BookSource 格式 */
 function convertLegadoSource(raw: Record<string, unknown>): BookSource | null {
   const name = clean(raw.name)
-  const url = clean(raw.url)
+  const url = safeSourceUrl(raw.url)
   const search = raw.search as Record<string, unknown> | undefined
   const toc = raw.toc as Record<string, unknown> | undefined
   const chapter = raw.chapter as Record<string, unknown> | undefined
@@ -72,7 +83,7 @@ function convertLegadoSource(raw: Record<string, unknown>): BookSource | null {
     enabled: true,
     search: search
       ? {
-          url: clean(search.url).replaceAll('%s', '{{key}}'),
+          url: safeRuleUrl(search.url).replaceAll('%s', '{{key}}'),
           method: clean(search.method).toUpperCase() === 'POST' ? 'POST' : 'GET',
           data: convertData(search.data),
           bookList: pureSelector(search.result),
@@ -105,7 +116,7 @@ export function normalizeSource(raw: unknown): BookSource | null {
 
   if ('catalog' in obj && 'content' in obj) {
     const s = obj as unknown as BookSource
-    if (s.name && s.url && s.catalog?.chapterList && s.content?.content) {
+    if (s.name && isSafeHttpUrl(s.url) && s.catalog?.chapterList && s.content?.content && (!s.search?.url || isSafeHttpUrl(s.search.url, true))) {
       return { ...s, enabled: s.enabled ?? true }
     }
     return null
