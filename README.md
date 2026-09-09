@@ -1,5 +1,8 @@
-# 畅读小说
-基于 so-novel 书源的 Chrome 侧边栏小说搜索与 TXT 下载插件。
+# 畅读小说 Free Novel
+
+Chrome Side Panel 小说搜索与 TXT 下载扩展。
+
+基于 so-novel 书源，支持 Chrome Manifest V3、多书源并发搜索、整本小说下载、下载进度和本地下载记录。
 
 ## 功能
 
