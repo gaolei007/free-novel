@@ -14,6 +14,7 @@ export interface RuleDetail {
   catalogUrl?: string;     // 目录页链接选择器（若详情页即目录页可留空）
   cover?: string;          // 封面图片选择器
   intro?: string;          // 简介选择器
+  urlPattern?: string;     // 详情页 URL 正则，首分组用于提取书籍 ID（legado book.url）
 }
 
 export interface RuleCatalog {
@@ -21,6 +22,7 @@ export interface RuleCatalog {
   chapterName: string;     // 章节名选择器或提取逻辑（为空则取元素自身文本）
   chapterUrl: string;      // 章节详情链接选择器，如: "href"
   nextPage?: string;       // 目录分页选择器（select option 或分页链接，取 value/href）
+  urlTemplate?: string;    // 目录页 URL 模板，%s 替换为书籍 ID（legado toc.url）
 }
 
 export interface RuleContent {

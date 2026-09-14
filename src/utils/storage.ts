@@ -1,4 +1,5 @@
 import type { BookSource } from '../types/source'
+import type { FailedChapterInfo } from './downloader'
 
 export const STORAGE_KEYS = {
   sources: 'bookSources',
@@ -23,6 +24,28 @@ export interface DownloadRecord {
   downloadId?: number
   fileName?: string
   errorMessage?: string
+  /** 最后一次进度写入时间，用于识别「下载中」的记录是否已经中断 */
+  updatedAt?: number
+  /** 重试后仍抓取失败的章节名，下载完成但部分缺章时记录 */
+  failedChapters?: string[]
+  /** 失败章节的明细（地址 + 具体原因），供记录页弹窗查看 */
+  failedChapterDetails?: FailedChapterInfo[]
+}
+
+/**
+ * 记录是否还没下完：
+ * - `downloading`：下载中（含侧边栏关掉后的中断）
+ * - `failed`：整本失败
+ * - `completed` 但仍有缺章：文件生成过，书还是残的，需要补章
+ */
+export function isRecordIncomplete(record: DownloadRecord): boolean {
+  if (record.status !== 'completed') return true
+  return !!(record.failedChapters?.length || record.failedChapterDetails?.length)
+}
+
+/** 未下载完成的记录数，供侧边栏徽标提示（下完的不再计数） */
+export function countIncompleteRecords(records: DownloadRecord[]): number {
+  return records.filter(isRecordIncomplete).length
 }
 
 export async function loadSources(): Promise<BookSource[]> {

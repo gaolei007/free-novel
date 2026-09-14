@@ -1,5 +1,5 @@
 import type { BookSource } from '../types/source'
-import type { BookItem, ChapterItem } from './messages'
+import type { BookInfo, BookItem, ChapterItem } from './messages'
 
 /**
  * sidepanel 调用 background 执行跨域抓取。
@@ -16,4 +16,9 @@ export function getCatalog(detailUrl: string, source: BookSource): Promise<Chapt
 
 export function getChapterContent(chapterUrl: string, source: BookSource): Promise<string> {
   return browser.runtime.sendMessage({ type: 'getChapterContent', chapterUrl, source })
+}
+
+/** 读详情页的书名/作者，供「按链接下载」跳过搜索 */
+export function getBookInfo(detailUrl: string, source: BookSource): Promise<BookInfo> {
+  return browser.runtime.sendMessage({ type: 'getBookInfo', detailUrl, source })
 }

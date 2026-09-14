@@ -17,6 +17,8 @@ export default defineConfig({
     // 权限申请（后续爬虫解析会用到）
     permissions: [
       'storage', 'sidePanel', 'offscreen', 'downloads',
+      // 正文缓存存 IndexedDB，申请无限存储避免长篇小说把缓存挤掉
+      'unlimitedStorage',
     ],
     // 跨域请求权限（允许插件直接抓取任意小说的网页内容）
     host_permissions: [

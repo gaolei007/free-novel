@@ -6,7 +6,10 @@
       </el-tab-pane>
       <el-tab-pane name="downloads">
         <template #label>
-          <span class="download-tab-label">下载记录<el-badge v-if="recordCount" :value="Math.min(recordCount, 99)" /></span>
+          <!-- 徽标只统计未下载完成的记录（下载中/中断/失败/残本），下完的不再计数 -->
+          <span class="download-tab-label" :title="incompleteCount ? `${incompleteCount} 条未下载完成` : undefined">
+            下载记录<el-badge v-if="incompleteCount" :value="incompleteCount" :max="99" />
+          </span>
         </template>
         <DownloadRecords />
       </el-tab-pane>
@@ -22,23 +25,53 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import SearchList from './components/SearchList.vue'
 import DownloadRecords from './components/DownloadRecords.vue'
 import SourceConfig from './components/SourceConfig.vue'
-import { STORAGE_KEYS, loadRecords } from '../../utils/storage'
+import {
+  STORAGE_KEYS,
+  countIncompleteRecords,
+  loadRecords,
+  type DownloadRecord,
+} from '../../utils/storage'
+import { syncSoNovelSources } from '../../utils/sourceSync'
+
+// 书源规则更新较频繁（站点改版要跟着改选择器），超过 12 小时就在打开侧边栏时静默同步
+const AUTO_SYNC_INTERVAL = 12 * 60 * 60 * 1000
 
 const activeTab = ref('search')
-const recordCount = ref(0)
+const incompleteCount = ref(0)
 
 const onStorageChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
   const change = changes[STORAGE_KEYS.records]
   if (area !== 'local' || !change) return
-  recordCount.value = Array.isArray(change.newValue) ? change.newValue.length : 0
+  incompleteCount.value = countIncompleteRecords(
+    Array.isArray(change.newValue) ? (change.newValue as DownloadRecord[]) : [],
+  )
 }
 
 onMounted(async () => {
-  recordCount.value = (await loadRecords()).length
+  incompleteCount.value = countIncompleteRecords(await loadRecords())
   browser.storage.onChanged.addListener(onStorageChanged)
+  warmUpScraper()
+  void autoSyncSources()
 })
 
+/** 预热离屏文档，避免第一次搜索时冷启动导致的整片书源失败 */
+function warmUpScraper() {
+  browser.runtime.sendMessage({ type: 'warmup' }).catch(() => {})
+}
+
 onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged))
+
+/** 静默同步远程书源，失败不打扰用户（搜索页仍能用本地缓存的书源） */
+async function autoSyncSources() {
+  try {
+    const { lastSourceSyncAt } = await browser.storage.local.get('lastSourceSyncAt')
+    if (typeof lastSourceSyncAt === 'number' && Date.now() - lastSourceSyncAt < AUTO_SYNC_INTERVAL) return
+    await syncSoNovelSources()
+    await browser.storage.local.set({ lastSourceSyncAt: Date.now() })
+  } catch {
+    // 网络不通等原因导致失败时保持静默
+  }
+}
 </script>
 
 <style lang="scss">

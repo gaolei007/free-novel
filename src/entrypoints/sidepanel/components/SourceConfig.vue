@@ -15,6 +15,15 @@
       <div v-for="source in sources" :key="source.url" class="source-item">
         <div class="source-dot" />
         <div class="source-info"><div class="source-name">{{ source.name }}</div><div class="source-url">{{ source.url }}</div></div>
+        <el-button
+          class="remove-button"
+          size="small"
+          type="danger"
+          :disabled="syncing"
+          :icon="Delete"
+          text
+          @click="handleRemove(source)"
+        />
       </div>
     </section>
   </div>
@@ -22,10 +31,10 @@
 
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Refresh } from '@element-plus/icons-vue'
 import type { BookSource } from '../../../types/source'
-import { loadSources } from '../../../utils/storage'
+import { loadSources, saveSources } from '../../../utils/storage'
 import { syncSoNovelSources } from '../../../utils/sourceSync'
 
 const sources = ref<BookSource[]>([])
@@ -53,6 +62,25 @@ async function handleSync() {
   } finally { syncing.value = false }
 }
 
+async function handleRemove(source: BookSource) {
+  try {
+    await ElMessageBox.confirm(
+      `确定移除书源“${source.name}”吗？移除后仍可通过同步重新添加。`,
+      '移除书源',
+      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' },
+    )
+    const nextSources = sources.value.filter((item) => item.url !== source.url)
+    await saveSources(nextSources)
+    sources.value = nextSources
+    ElMessage.success(`已移除书源：${source.name}`)
+  } catch (error) {
+    // 用户取消确认时不提示错误。
+    if (error !== 'cancel' && error !== 'close') {
+      errorMessage.value = error instanceof Error ? error.message : '移除失败，请稍后重试'
+    }
+  }
+}
+
 function formatTime(timestamp: number) {
   return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'short' }).format(timestamp)
 }
@@ -67,10 +95,12 @@ function formatTime(timestamp: number) {
 .status-row { margin-top: 8px; }
 .secondary { color: var(--el-text-color-secondary); font-size: 12px; }
 .source-list { margin-top: 14px; }
-.source-item { display: flex; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--el-border-color-lighter); }
+.source-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--el-border-color-lighter); }
 .source-dot { width: 8px; height: 8px; margin-top: 5px; flex: 0 0 auto; border-radius: 50%; background: var(--el-color-success); }
-.source-info { min-width: 0; }
+.source-info { min-width: 0; flex: 1; }
 .source-name { font-weight: 600; }
+.remove-button { flex: 0 0 auto; }
+.remove-button :deep(.el-icon) { margin-right: 3px; }
 .source-url { margin-top: 3px; overflow: hidden; color: var(--el-text-color-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .el-alert { margin-top: 12px; }
 </style>

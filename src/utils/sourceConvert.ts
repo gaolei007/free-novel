@@ -65,6 +65,12 @@ function convertLegadoSource(raw: Record<string, unknown>): BookSource | null {
   const contentSelector = pureSelector(chapter.content)
   if (!chapterList || !contentSelector) return null
 
+  // legado 的 toc.url 是独立目录页（详情页往往只有最新几章），%s 为书籍 ID
+  // book.url 是详情页正则，第一个分组即书籍 ID
+  const book = raw.book as Record<string, unknown> | undefined
+  const urlTemplate = safeRuleUrl(toc.url)
+  const urlPattern = clean(book?.url)
+
   // filterTag → 标签过滤；filterTxt → 文本/正则过滤
   const filterTag = clean(chapter.filterTag)
   const filterTxt = clean(chapter.filterTxt)
@@ -94,11 +100,15 @@ function convertLegadoSource(raw: Record<string, unknown>): BookSource | null {
           detailUrl: bookName ? `${bookName}@href` : 'a@href',
         }
       : undefined,
+    detail: urlPattern || pureSelector(book?.coverUrl)
+      ? { urlPattern: urlPattern || undefined, cover: pureSelector(book?.coverUrl) || undefined }
+      : undefined,
     catalog: {
       chapterList,
       chapterName: '',
       chapterUrl: 'href',
       nextPage: pureSelector(toc.nextPage) || undefined,
+      urlTemplate: urlTemplate || undefined,
     },
     content: {
       content: contentSelector,
