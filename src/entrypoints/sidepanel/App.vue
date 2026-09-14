@@ -1,27 +1,25 @@
 <template>
   <div class="sidepanel">
-    <el-tabs v-model="activeTab" class="sidepanel-tabs">
-      <el-tab-pane label="搜索小说" name="search" class="search-pane">
-        <SearchList />
-      </el-tab-pane>
-      <el-tab-pane name="downloads">
-        <template #label>
-          <!-- 徽标只统计未下载完成的记录（下载中/中断/失败/残本），下完的不再计数 -->
-          <span class="download-tab-label" :title="incompleteCount ? `${incompleteCount} 条未下载完成` : undefined">
-            下载记录<el-badge v-if="incompleteCount" :value="incompleteCount" :max="99" />
-          </span>
-        </template>
-        <DownloadRecords />
-      </el-tab-pane>
-      <el-tab-pane label="同步书源" name="sources">
-        <SourceConfig />
-      </el-tab-pane>
-    </el-tabs>
+    <!-- 分段控件：角标常驻，状态可见性不依赖当前选中项 -->
+    <el-segmented v-model="activeTab" :options="tabOptions" block class="tab-bar">
+      <template #default="{ item }">
+        <span class="tab-label">
+          <span>{{ optionLabel(item) }}</span>
+          <span v-if="showBadge(item)" class="tab-badge">{{ badgeText }}</span>
+        </span>
+      </template>
+    </el-segmented>
+
+    <div class="panel-stack">
+      <SearchList v-show="activeTab === 'search'" />
+      <DownloadRecords v-show="activeTab === 'downloads'" />
+      <SourceConfig v-show="activeTab === 'sources'" />
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import SearchList from './components/SearchList.vue'
 import DownloadRecords from './components/DownloadRecords.vue'
 import SourceConfig from './components/SourceConfig.vue'
@@ -36,8 +34,32 @@ import { syncSoNovelSources } from '../../utils/sourceSync'
 // 书源规则更新较频繁（站点改版要跟着改选择器），超过 12 小时就在打开侧边栏时静默同步
 const AUTO_SYNC_INTERVAL = 12 * 60 * 60 * 1000
 
+interface TabOption {
+  label: string
+  value: string
+}
+
+const tabOptions: TabOption[] = [
+  { label: '搜索小说', value: 'search' },
+  { label: '下载记录', value: 'downloads' },
+  { label: '同步书源', value: 'sources' },
+]
+
 const activeTab = ref('search')
 const incompleteCount = ref(0)
+const badgeText = computed(() => (incompleteCount.value > 99 ? '99+' : String(incompleteCount.value)))
+
+/** el-segmented 的 options 既可能是字符串也可能是对象，取显示文案 */
+function optionLabel(item: unknown): string {
+  if (typeof item === 'string' || typeof item === 'number') return String(item)
+  return (item as TabOption | null)?.label ?? ''
+}
+
+/** 只有「下载记录」带角标，且未下载完的记录数 > 0 才显示 */
+function showBadge(item: unknown): boolean {
+  if (!item || typeof item !== 'object') return false
+  return (item as TabOption).value === 'downloads' && incompleteCount.value > 0
+}
 
 const onStorageChanged = (changes: Record<string, { newValue?: unknown }>, area: string) => {
   const change = changes[STORAGE_KEYS.records]
@@ -75,6 +97,64 @@ async function autoSyncSources() {
 </script>
 
 <style lang="scss">
+/* ============================================================
+   设计令牌 —— 与 UI 稿件逐值对应
+   切主题只需在 html 上挂 / 摘 dark 类（main.ts 跟随系统偏好）
+   ============================================================ */
+:root {
+  --cd-bg: #f2f3f5;
+  --cd-panel: #ffffff;
+  --cd-divider: #e4e7ed;
+  --cd-input-border: #dcdfe6;
+  --cd-card-border: #ebeef5;
+  --cd-text-primary: #303133;
+  --cd-text-regular: #606266;
+  --cd-text-secondary: #909399;
+  --cd-icon-weak: #c0c4cc;
+  --cd-placeholder: #a8abb2;
+  --cd-primary: #409eff;
+  --cd-primary-hover: #66b1ff;
+  --cd-primary-soft: #ecf5ff;
+  --cd-primary-soft-border: #a0cfff;
+  --cd-tag-bg: #ecf5ff;
+  --cd-tag-ring: transparent;
+  --cd-warn-bg: #fdf6ec;
+  --cd-warn: #e6a23c;
+  --cd-danger: #f56c6c;
+  --cd-success: #67c23a;
+  --cd-track: #ebeef5;
+  --cd-del-icon: #c0c4cc;
+  /* 弹窗跟着卡片底色走，避免默认 bg 与稿件不一致 */
+  --el-dialog-bg-color: var(--cd-panel);
+}
+
+html.dark {
+  --cd-bg: #0a0a0a;
+  --cd-panel: #1d1e1f;
+  --cd-divider: #2c2c2e;
+  --cd-input-border: #414243;
+  --cd-card-border: #363637;
+  --cd-text-primary: #e5eaf3;
+  --cd-text-regular: #cfd3dc;
+  --cd-text-secondary: #a3a6ad;
+  --cd-icon-weak: #4c4d4f;
+  --cd-placeholder: #a8abb2;
+  --cd-primary: #409eff;
+  --cd-primary-hover: #66b1ff;
+  --cd-primary-soft: #18222c;
+  --cd-primary-soft-border: #2c4a6b;
+  /* 暗色下 #18222c 与卡片 #1d1e1f 对比仅 1.03，等于融底，故提亮并加一圈描边 */
+  --cd-tag-bg: #24405f;
+  --cd-tag-ring: #2c4a6b;
+  --cd-warn-bg: #2b1d11;
+  --cd-warn: #e6a23c;
+  --cd-danger: #f56c6c;
+  --cd-success: #67c23a;
+  --cd-track: #363637;
+  /* 删除图标不能用 --cd-icon-weak（暗色下是 #4c4d4f）叠透明度，会和卡片底融在一起 */
+  --cd-del-icon: #8a8f99;
+}
+
 html,
 body,
 #app {
@@ -83,11 +163,13 @@ body,
   min-width: 360px;
 }
 
-// 背景与文字色用 Element Plus 变量，自动跟随暗色/亮色
 body {
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  font-family: Inter, Roboto, "Noto Sans SC", system-ui, sans-serif;
+  background: var(--cd-bg);
+  color: var(--cd-text-primary);
+  font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
 }
 </style>
 
@@ -95,106 +177,87 @@ body {
 .sidepanel {
   display: flex;
   flex-direction: column;
+  gap: 12px;
   height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  background: var(--cd-bg);
+}
 
-  .sidepanel-tabs {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+/* ---------- 分段控件（el-segmented） ---------- */
+.tab-bar {
+  flex: 0 0 38px;
+  width: 100%;
+  height: 38px;
+  min-height: 38px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-divider);
+  font-size: 12px;
+
+  // 用组件自身的 CSS 变量对接设计令牌，避免和内部类名硬碰
+  --el-segmented-bg-color: transparent;
+  --el-segmented-padding: 0;
+  --el-segmented-color: var(--cd-text-regular);
+  --el-segmented-item-selected-bg-color: var(--cd-primary);
+  --el-segmented-item-selected-color: #fff;
+  --el-segmented-item-hover-color: var(--cd-primary);
+  --el-segmented-item-hover-bg-color: transparent;
+  --el-segmented-item-active-bg-color: transparent;
+
+  :deep(.el-segmented__item) {
+    justify-content: center;
+    gap: 4px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 400;
+    padding: 0;
+  }
+
+  :deep(.el-segmented__item.is-selected) {
+    font-weight: 500;
+  }
+
+  :deep(.el-segmented__item-selected) {
+    border-radius: 6px;
+  }
+}
+
+.tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tab-badge {
+  display: inline-flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--cd-danger);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+/* ---------- 面板容器 ---------- */
+.panel-stack {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+
+  > * {
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 0;
-
-    // 头部：去掉默认底边线，留出外边距
-    :deep(.el-tabs__header) {
-      margin: 0;
-      padding: 8px 10px;
-      border-bottom: none;
-    }
-
-    :deep(.download-tab-label) {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    :deep(.download-tab-label .el-badge__content) {
-      position: static;
-      transform: none;
-      border: 0;
-    }
-
-    // 整条 nav 变成深色圆角容器
-    :deep(.el-tabs__nav-wrap) {
-      padding: 4px;
-      background: var(--el-fill-color-dark);
-      border-radius: 10px;
-
-      // 去掉默认底部分隔线
-      &::after {
-        display: none;
-      }
-    }
-
-    // 关键：nav 撑满整行，每个 item 平分宽度（不管几个 tab）
-    :deep(.el-tabs__nav-scroll) {
-      width: 100%;
-    }
-
-    :deep(.el-tabs__nav) {
-      display: flex;
-      width: 100%;
-    }
-
-    :deep(.el-tabs__item) {
-      flex: 1;
-      height: 32px;
-      line-height: 32px;
-      padding: 0;
-      text-align: center;
-      border-radius: 8px;
-      color: var(--el-text-color-regular);
-      transition:
-        background-color 0.2s,
-        color 0.2s;
-
-      &:hover:not(.is-active) {
-        color: var(--el-text-color-primary);
-      }
-
-      // 选中项：蓝色圆角块 + 白字
-      &.is-active {
-        background: var(--el-color-primary);
-        color: #fff;
-      }
-    }
-
-    // 隐藏默认的底部活动指示条
-    :deep(.el-tabs__active-bar) {
-      display: none;
-    }
-
-    :deep(.el-tabs__content) {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    :deep(.el-tab-pane) {
-      display: flex;
-      flex: 1 1 auto;
-      flex-direction: column;
-      height: 100%;
-      min-height: 0;
-    }
-
-    :deep(.search-pane) {
-      overflow: hidden;
-    }
-
-    :deep(.el-tab-pane:not(.search-pane)) {
-      overflow-y: auto;
-    }
   }
 }
 </style>

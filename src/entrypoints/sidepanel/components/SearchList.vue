@@ -1,16 +1,49 @@
 <template>
   <div class="search-list">
-    <div class="search-bar">
-      <el-input v-model="keyword" placeholder="输入书名或作者" clearable @keyup.enter="handleSearch">
-        <template #append><el-button :loading="searching" @click="handleSearch"><el-icon><Search /></el-icon>搜索</el-button></template>
-      </el-input>
+    <!-- 搜索框：图标 + 输入 + 内嵌按钮，一体化 -->
+    <el-input
+      v-model="keyword"
+      class="search-field"
+      placeholder="输入书名或作者"
+      @keyup.enter="handleSearch"
+    >
+      <template #prefix><el-icon class="search-icon"><Search /></el-icon></template>
+      <template #suffix>
+        <el-button class="search-btn" type="primary" :loading="searching" @click="handleSearch">搜索</el-button>
+      </template>
+    </el-input>
+
+    <div v-if="searching" class="loading-state">
+      <el-icon class="is-loading"><Loading /></el-icon>
+      <span>正在搜索 {{ keyword }} ···</span>
     </div>
 
-    <el-alert v-if="!enabledSources.length" title="暂无可搜索书源，请先同步 so-novel 书源" type="info" show-icon :closable="false" />
-    <el-alert v-else-if="failedSources.length" type="warning" show-icon :closable="false" class="failed-alert">
+    <el-alert
+      v-if="!enabledSources.length"
+      class="hint-alert"
+      title="暂无可搜索书源，请先同步 so-novel 书源"
+      type="info"
+      show-icon
+      :closable="false"
+    />
+
+    <el-alert
+      v-else-if="failedSources.length"
+      class="failed-alert"
+      type="warning"
+      :show-icon="false"
+      :closable="false"
+    >
       <template #title>
-        <span>{{ failedSources.length }} 个书源搜索失败，</span>
-        <el-button class="failed-link" link type="warning" @click="failedDialogVisible = true">查看失败原因</el-button>
+        <span class="alert-inner">
+          <span class="alert-text">
+            <el-icon class="alert-icon"><Warning /></el-icon>
+            <span>{{ failedSources.length }} 个书源搜索失败</span>
+          </span>
+          <el-button class="alert-action" link type="warning" @click="failedDialogVisible = true">
+            查看失败原因<el-icon><ArrowRight /></el-icon>
+          </el-button>
+        </span>
       </template>
     </el-alert>
 
@@ -30,45 +63,71 @@
       <el-empty v-else description="暂无失败记录" :image-size="48" />
       <template #footer>
         <el-button size="small" @click="failedDialogVisible = false">关闭</el-button>
+        <el-button size="small" type="primary" :loading="searching" @click="retryFailedSources">重试失败书源</el-button>
       </template>
     </el-dialog>
 
-    <div v-if="pagedBooks.length" class="result-section">
-      <div class="result-heading"><span>搜索结果（{{ books.length }}）</span><span class="page-info">第 {{ currentPage }} / {{ pageCount }} 页</span></div>
-      <div class="result-scroll">
-        <div v-for="(book, index) in pagedBooks" :key="`${book.sourceName}-${book.detailUrl}-${index}`" class="book-item">
-          <div class="book-main">
-            <div class="book-title-row">
-              <el-tag class="source-tag" size="small" effect="plain">{{ book.sourceName }}</el-tag>
-              <el-link class="book-name" type="primary" :underline="false" title="在当前标签页打开详情页" @click="openUrl(book.detailUrl)">
-                <span class="book-name-text">{{ book.name }}</span>
-              </el-link>
-            </div>
-            <div class="book-meta">作者：{{ book.author || '未知' }}</div>
-            <div class="book-meta">最近章节：{{ book.latestChapter || '未知' }}</div>
-          </div>
-          <el-button
-            class="download-button"
-            size="small"
-            type="primary"
-            plain
-            :loading="isDownloading(book)"
-            :disabled="isDownloading(book)"
-            @click="handleDownload(book)"
-          >{{ isDownloading(book) ? '下载中' : '下载' }}</el-button>
-        </div>
+    <template v-if="pagedBooks.length">
+      <div class="result-meta">
+        <span class="meta-left">搜索结果<span class="meta-count">{{ books.length }}</span></span>
+        <span class="page-indicator">第 {{ currentPage }} / {{ pageCount }} 页</span>
       </div>
-      <el-pagination class="page-footer" v-model:current-page="currentPage" small layout="prev, pager, next" :page-size="pageSize" :total="books.length" />
-    </div>
-    <el-empty v-else-if="!searching" :description="hasSearched ? '没有找到匹配的小说' : '输入书名或作者开始搜索'" :image-size="64" />
-    <div v-if="searching" class="loading-state"><el-icon class="is-loading"><Loading /></el-icon> 正在搜索{{ keyword }}···</div>
+
+      <div class="result-list">
+        <article v-for="(book, index) in pagedBooks" :key="`${book.sourceName}-${book.detailUrl}-${index}`" class="result-card">
+          <div class="card-head">
+            <div class="title-group">
+              <span class="source-tag">{{ book.sourceName }}</span>
+              <span
+                class="book-title"
+                role="link"
+                tabindex="0"
+                title="在当前标签页打开详情页"
+                @click="openUrl(book.detailUrl)"
+                @keydown.enter="openUrl(book.detailUrl)"
+                @keydown.space.prevent="openUrl(book.detailUrl)"
+              >{{ book.name }}</span>
+            </div>
+            <el-button
+              class="dl-btn"
+              type="primary"
+              plain
+              :loading="isDownloading(book)"
+              :disabled="isDownloading(book)"
+              @click="handleDownload(book)"
+            >{{ isDownloading(book) ? '下载中' : '下载' }}</el-button>
+          </div>
+          <div class="card-meta">
+            <span>作者：{{ book.author || '未知' }}</span>
+            <span>最近章节：{{ book.latestChapter || '未知' }}</span>
+          </div>
+        </article>
+      </div>
+
+      <el-pagination
+        class="page-footer"
+        v-model:current-page="currentPage"
+        small
+        :pager-count="7"
+        layout="prev, pager, next"
+        :page-size="pageSize"
+        :total="books.length"
+      />
+    </template>
+
+    <el-empty
+      v-else-if="!searching"
+      class="empty-state"
+      :description="hasSearched ? '没有找到匹配的小说' : '输入书名或作者开始搜索'"
+      :image-size="64"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Loading, Search } from '@element-plus/icons-vue'
+import { ArrowRight, Loading, Search, Warning } from '@element-plus/icons-vue'
 import type { BookSource } from '../../../types/source'
 import type { BookItem } from '../../../utils/messages'
 import { getCatalog, searchBooks } from '../../../utils/api'
@@ -374,29 +433,409 @@ async function handleDownload(book: BookItem) {
 </script>
 
 <style lang="scss" scoped>
-.search-list { display: flex; flex: 1 1 auto; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; gap: 10px; overflow: hidden; padding: 0 12px 16px; }
-.search-bar { position: sticky; top: 0; z-index: 1; padding: 8px 0; background: var(--el-bg-color); }
-.result-section { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
-.result-heading { display: flex; justify-content: space-between; padding-top: 2px; font-size: 13px; font-weight: 600; }
-.page-info { color: var(--el-text-color-secondary); font-weight: 400; }
-/* alert 标题里的行内按钮：抵消 el-button 的默认高度/内边距，避免撑高标题行 */
-.failed-alert :deep(.el-alert__title) { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; word-break: break-all; }
-.failed-alert :deep(.failed-link) { height: auto; padding: 0; font-size: inherit; vertical-align: baseline; }
-.failed-list { display: flex; flex-direction: column; gap: 12px; max-height: 50vh; overflow-y: auto; }
-.failed-item { padding: 8px 10px; border: 1px solid var(--el-border-color-lighter); border-radius: 6px; background: var(--el-fill-color-lighter); }
-.failed-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; }
-.failed-open { height: auto; padding: 0; font-size: 12px; }
-.failed-reason { margin-top: 6px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; word-break: break-all; }
-.result-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px; }
-.book-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--el-border-color-lighter); }
-.book-main { min-width: 0; }
-.book-title-row { display: flex; align-items: center; min-width: 0; gap: 8px; }
-.book-name { min-width: 0; justify-content: flex-start; height: auto; font-size: 14px; font-weight: 600; }
-.book-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.book-name-icon { flex: 0 0 auto; margin-left: 4px; font-size: 12px; opacity: 0.65; }
-.source-tag { flex: 0 0 auto; max-width: none; white-space: nowrap; }
-.book-meta { margin-top: 8px; overflow: hidden; color: var(--el-text-color-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.download-button { flex: 0 0 auto; white-space: nowrap; }
-.loading-state { padding: 24px 0; color: var(--el-text-color-secondary); text-align: center; }
-.page-footer { flex-shrink: 0; justify-content: center; margin-top: 6px; padding: 4px 0 0; background: var(--el-bg-color); }
+.search-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- 搜索框（el-input + 内嵌按钮） ---------- */
+.search-field {
+  flex: 0 0 36px;
+  font-size: 13px;
+
+  :deep(.el-input__wrapper) {
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--cd-panel);
+    box-shadow: inset 0 0 0 1px var(--cd-input-border);
+  }
+
+  :deep(.el-input__wrapper.is-focus) {
+    box-shadow: inset 0 0 0 1px var(--cd-primary);
+  }
+
+  :deep(.el-input__inner) {
+    height: 28px;
+    line-height: 28px;
+    font-size: 13px;
+    color: var(--cd-text-primary);
+  }
+
+  :deep(.el-input__inner::placeholder) {
+    color: var(--cd-placeholder);
+  }
+
+  :deep(.el-input__prefix) {
+    width: 32px;
+    justify-content: center;
+    margin: 0;
+    font-size: 16px;
+  }
+
+  :deep(.el-input__suffix) {
+    margin: 0;
+  }
+
+  .search-icon {
+    color: var(--cd-placeholder);
+  }
+
+  .search-btn {
+    --el-button-size: 28px;
+    flex: 0 0 56px;
+    width: 56px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+}
+
+/* ---------- 提示条 ---------- */
+.hint-alert,
+.failed-alert {
+  flex: 0 0 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  justify-content: center;
+}
+
+.failed-alert {
+  background: var(--cd-warn-bg);
+
+  :deep(.el-alert__icon) {
+    margin-right: 6px;
+    font-size: 14px;
+    color: var(--cd-warn);
+  }
+
+  :deep(.el-alert__content) {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+  }
+
+  :deep(.el-alert__title) {
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--cd-warn);
+  }
+
+  :deep(.el-alert__description) {
+    display: none;
+  }
+}
+
+.alert-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+/* 图标与文字用 flex 居中，避免 inline 基线对齐导致图标偏高 */
+.alert-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--cd-warn);
+  /* 定高 40px，文案过长时省略而不是换行撑破 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+}
+
+.alert-action {
+  flex: 0 0 auto;
+  height: auto;
+  padding: 0;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  :deep(.el-icon) {
+    margin-left: 2px;
+  }
+}
+
+/* ---------- 结果元信息 ---------- */
+.result-meta {
+  display: flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.meta-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--cd-text-regular);
+}
+
+.meta-count {
+  color: var(--cd-primary);
+  font-weight: 600;
+}
+
+.page-indicator {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--cd-text-secondary);
+}
+
+/* ---------- 结果卡片 ---------- */
+.result-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.result-card {
+  display: flex;
+  flex: 0 0 74px;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-card-border);
+}
+
+.card-head {
+  display: flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.source-tag {
+  flex: 0 0 auto;
+  padding: 4px;
+  border-radius: 4px;
+  background: var(--cd-tag-bg);
+  color: var(--cd-primary);
+  /* 暗色靠这圈描边锚住轮廓，亮色下为 transparent 不生效 */
+  box-shadow: inset 0 0 0 1px var(--cd-tag-ring);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 书名是链接：可点击进阅读页，只靠主色标识，不带下划线 */
+.book-title {
+  display: block;
+  /* 允许在 flex 行内收缩，长书名才会正确出省略号 */
+  min-width: 0;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--cd-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.book-title:hover {
+  color: var(--cd-primary-hover);
+}
+
+.book-title:focus-visible {
+  outline: 2px solid rgba(64, 158, 255, 0.35);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.dl-btn {
+  --el-button-size: 22px;
+  flex: 0 0 52px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--cd-primary-soft);
+  color: var(--cd-primary);
+  box-shadow: inset 0 0 0 1px var(--cd-primary-soft-border);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+
+  &:hover:not(.is-disabled) {
+    background: var(--cd-primary);
+    color: #fff;
+  }
+
+  /* 下载中：按钮置灰但仍可读，避免被 EP 的 is-disabled 样式盖掉自定义底色 */
+  &.is-disabled,
+  &.is-disabled:hover {
+    background: var(--cd-primary-soft);
+    color: var(--cd-icon-weak);
+    box-shadow: inset 0 0 0 1px var(--cd-primary-soft-border);
+  }
+}
+
+.card-meta {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 0;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--cd-text-secondary);
+}
+
+.card-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 分页 ---------- */
+.page-footer {
+  display: flex;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  --el-pagination-font-size: 12px;
+  --el-pagination-button-width: 24px;
+  --el-pagination-button-height: 24px;
+  /* 页码/箭头都不带底色，靠当前页的主色块区分 */
+  --el-pagination-bg-color: transparent;
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-text-color: var(--cd-text-regular);
+  --el-pagination-hover-color: var(--cd-primary);
+  --el-pagination-border-radius: 6px;
+  --el-pagination-button-disabled-color: var(--cd-icon-weak);
+  --el-pagination-button-disabled-bg-color: transparent;
+
+  /* EP 给页码 4px 外边距、给箭头 16px item-gap，统一交给容器的 gap 控制 */
+  :deep(.btn-prev),
+  :deep(.btn-next),
+  :deep(.el-pager li) {
+    margin: 0;
+  }
+
+  :deep(.btn-prev),
+  :deep(.btn-next) {
+    color: var(--cd-icon-weak);
+
+    .el-icon {
+      font-size: 14px;
+      font-weight: 400;
+    }
+  }
+
+  :deep(.el-pager li) {
+    color: var(--cd-text-regular);
+    font-weight: 400;
+  }
+
+  :deep(.el-pager li.is-active) {
+    color: #fff;
+    font-weight: 500;
+  }
+
+  :deep(.el-pager li.more) {
+    color: var(--cd-icon-weak);
+  }
+}
+
+/* ---------- 空态 / 加载态 ---------- */
+.empty-state {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.loading-state {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--cd-text-secondary);
+  font-size: 12px;
+}
+
+/* ---------- 失败原因弹窗 ---------- */
+.failed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.failed-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-card-border);
+}
+
+.failed-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.failed-open {
+  height: auto;
+  padding: 0;
+  font-size: 12px;
+}
+
+.failed-reason {
+  margin-top: 4px;
+  color: var(--cd-text-secondary);
+  font-size: 11px;
+  line-height: 15px;
+  word-break: break-all;
+}
 </style>

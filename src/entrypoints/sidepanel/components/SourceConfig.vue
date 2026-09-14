@@ -1,27 +1,36 @@
 <template>
   <div class="source-config">
-    <section class="intro-card">
-      <div class="sync-info">
-        <div class="status-row"><span>本地书源</span><strong>{{ sources.length }} 个</strong></div>
-        <div v-if="lastSyncAt" class="status-row secondary"><span>最近同步</span><span>{{ formatTime(lastSyncAt) }}</span></div>
+    <section class="source-summary">
+      <div class="summary-info">
+        <div class="count-row">
+          <span class="count-label">本地书源</span>
+          <span class="count-value">{{ sources.length }} 个</span>
+        </div>
+        <span v-if="lastSyncAt" class="last-sync">最近同步 {{ formatTime(lastSyncAt) }}</span>
+        <span v-else class="last-sync">尚未同步过</span>
       </div>
-      <el-button type="primary" :loading="syncing" @click="handleSync">
-        <el-icon><Refresh /></el-icon>{{ syncing ? '同步中…' : '立即同步' }}
+      <el-button class="sync-btn" type="primary" :loading="syncing" @click="handleSync">
+        <el-icon><Refresh /></el-icon>{{ syncing ? '同步中' : '立即同步' }}
       </el-button>
     </section>
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" />
-    <el-empty v-if="!sources.length" description="暂无本地书源，请先同步" :image-size="64" />
+
+    <el-alert v-if="errorMessage" class="sync-error" :title="errorMessage" type="error" show-icon :closable="false" />
+
+    <el-empty v-if="!sources.length" class="empty-state" description="暂无本地书源，请先同步" :image-size="64" />
+
     <section v-else class="source-list">
-      <div v-for="source in sources" :key="source.url" class="source-item">
-        <div class="source-dot" />
-        <div class="source-info"><div class="source-name">{{ source.name }}</div><div class="source-url">{{ source.url }}</div></div>
+      <div v-for="source in sources" :key="source.url" class="source-row">
+        <span class="status-dot" />
+        <div class="source-info">
+          <span class="source-name">{{ source.name }}</span>
+          <span class="source-url">{{ source.url }}</span>
+        </div>
         <el-button
-          class="remove-button"
-          size="small"
-          type="danger"
-          :disabled="syncing"
+          class="del-btn"
+          link
           :icon="Delete"
-          text
+          :disabled="syncing"
+          :aria-label="`删除 ${source.name}`"
           @click="handleRemove(source)"
         />
       </div>
@@ -87,20 +96,161 @@ function formatTime(timestamp: number) {
 </script>
 
 <style lang="scss" scoped>
-.source-config { padding: 16px; }
-.intro-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-radius: 20px; }
-.sync-info { min-width: 0; }
-.eyebrow { color: var(--el-color-primary); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
-.status-row { display: flex; justify-content: space-between; gap: 12px; }
-.status-row { margin-top: 8px; }
-.secondary { color: var(--el-text-color-secondary); font-size: 12px; }
-.source-list { margin-top: 14px; }
-.source-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--el-border-color-lighter); }
-.source-dot { width: 8px; height: 8px; margin-top: 5px; flex: 0 0 auto; border-radius: 50%; background: var(--el-color-success); }
-.source-info { min-width: 0; flex: 1; }
-.source-name { font-weight: 600; }
-.remove-button { flex: 0 0 auto; }
-.remove-button :deep(.el-icon) { margin-right: 3px; }
-.source-url { margin-top: 3px; overflow: hidden; color: var(--el-text-color-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.el-alert { margin-top: 12px; }
+.source-config {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- 概览卡 ---------- */
+.source-summary {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-card-border);
+}
+
+.summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.count-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.count-label {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--cd-text-secondary);
+}
+
+.count-value {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--cd-text-primary);
+}
+
+.last-sync {
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--cd-text-secondary);
+}
+
+.sync-btn {
+  --el-button-size: 30px;
+  flex: 0 0 auto;
+  width: 92px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+
+  :deep(.el-icon) {
+    margin-right: 4px;
+  }
+}
+
+.sync-error {
+  flex: 0 0 auto;
+  border-radius: 8px;
+}
+
+/* ---------- 书源列表 ---------- */
+.source-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.source-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-card-border);
+}
+
+.status-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--cd-success);
+}
+
+.source-info {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.source-name {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--cd-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-url {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--cd-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 常驻中性灰，指针悬停才转危险色，避免一屏红图标 */
+.del-btn {
+  --el-button-size: 14px;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  color: var(--cd-del-icon);
+  font-size: 14px;
+  transition: color 0.2s;
+
+  &:hover:not(.is-disabled) {
+    color: var(--cd-danger);
+  }
+
+  /* 同步中禁用：保持可见但不再响应悬停 */
+  &.is-disabled,
+  &.is-disabled:hover {
+    color: var(--cd-del-icon);
+  }
+}
+
+.empty-state {
+  flex: 1 1 auto;
+  justify-content: center;
+}
 </style>
