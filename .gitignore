@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 .output
 .workbuddy
+.workbuddy-ai
 stats.html
 stats-*.json
 .wxt
