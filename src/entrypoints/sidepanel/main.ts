@@ -6,19 +6,21 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 import App from './App.vue'
+import { initTheme } from '../../utils/theme'
 
-// 跟随系统亮色/暗色，系统切换时实时更新
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
-const applyTheme = () => document.documentElement.classList.toggle('dark', darkQuery.matches)
-applyTheme()
-darkQuery.addEventListener('change', applyTheme)
+// 先把主题定下来再挂载：主题存在 storage 里，异步读完再渲染才不会先闪一下亮色
+async function bootstrap() {
+  await initTheme()
 
-const app = createApp(App)
+  const app = createApp(App)
 
-// 注册 Element Plus 所有图标
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component);
+  // 注册 Element Plus 所有图标
+  for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component)
+  }
+
+  app.use(ElementPlus)
+  app.mount('#app')
 }
 
-app.use(ElementPlus)
-app.mount('#app')
+void bootstrap()

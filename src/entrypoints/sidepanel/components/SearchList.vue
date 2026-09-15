@@ -69,7 +69,7 @@
 
     <template v-if="pagedBooks.length">
       <div class="result-meta">
-        <span class="meta-left">搜索结果<span class="meta-count">{{ books.length }}</span></span>
+        <span class="meta-left">搜索结果共<span class="meta-count">{{ books.length }}</span>条</span>
         <span class="page-indicator">第 {{ currentPage }} / {{ pageCount }} 页</span>
       </div>
 

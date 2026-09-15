@@ -1,58 +1,63 @@
 <template>
   <div class="download-records">
-    <div class="toolbar">
-      <span class="count">
-        共 {{ records.length }} 条记录<template v-if="incompleteCount"></template>
-      </span>
+    <div class="list-meta">
+      <span class="record-count">共 {{ records.length }} 条记录</span>
       <el-button
+        class="clear-btn"
         link
         type="danger"
-        size="small"
         :disabled="!records.length"
         @click="handleClear"
-      >
-        清空记录
-      </el-button>
+      >清空记录</el-button>
     </div>
 
-    <el-empty v-if="!records.length" description="暂无下载记录" :image-size="60" />
+    <el-empty v-if="!records.length" class="empty-state" description="暂无下载记录" :image-size="60" />
 
-    <el-scrollbar v-else>
-      <div v-for="record in records" :key="record.id" class="record-item">
-        <div class="record-info">
-          <div class="record-title-row">
-            <div class="record-name">{{ record.bookName }}</div>
-            <el-button
-              v-if="record.downloadId != null"
-              class="open-button"
-              link
-              type="primary"
-              size="small"
-              @click="openDownload(record.downloadId)"
-            >打开</el-button>
-          </div>
-          <div class="record-meta">
-            作者：{{ record.author || '未知' }} · 来源：{{ record.sourceName }} ·
-            {{ formatTime(record.downloadedAt) }}
-          </div>
+    <div v-else class="record-list">
+      <article v-for="record in records" :key="record.id" class="download-card">
+        <div class="dl-head">
+          <span class="dl-title">{{ record.bookName }}</span>
+          <el-button
+            v-if="record.downloadId != null"
+            class="open-btn"
+            link
+            type="primary"
+            @click="openDownload(record.downloadId)"
+          >打开</el-button>
+        </div>
+
+        <div class="dl-meta">
+          <span class="dl-meta-left">作者：{{ record.author || '未知' }} · 来源：{{ record.sourceName }}</span>
+          <span class="dl-meta-time">{{ formatTime(record.downloadedAt) }}</span>
+        </div>
+
+        <div
+          v-if="record.status === 'downloading' || record.status === 'completed'"
+          class="progress-row"
+        >
           <el-progress
-            v-if="record.status === 'downloading' || record.status === 'completed'"
+            class="progress-track"
             :percentage="record.progress ?? (record.status === 'completed' ? 100 : 0)"
             :status="record.status === 'completed' ? 'success' : undefined"
-            :format="() => `${record.completedChapters ?? 0}/${record.chapterCount || '?'} 章`"
+            :stroke-width="6"
+            :show-text="false"
           />
-          <div v-if="isInterrupted(record)" class="record-error">
-            下载已中断（停在 {{ record.completedChapters ?? 0 }}/{{ record.chapterCount || '?' }} 章），已抓到的章节保存在本地
-            <el-button class="detail-link" link type="danger" size="small" @click="openFailedDialog(record)">继续下载</el-button>
-          </div>
-          <div v-else-if="record.status === 'failed'" class="record-error">下载失败：{{ record.errorMessage || '未知错误' }}</div>
-          <div v-else-if="record.failedChapters?.length" class="record-error">
-            {{ record.failedChapters.length }} 章失败已跳过：{{ record.failedChapters.slice(0, 5).join('、') }}{{ record.failedChapters.length > 5 ? ' 等' : '' }}
-            <el-button class="detail-link" link type="danger" size="small" @click="openFailedDialog(record)">详细信息</el-button>
-          </div>
+          <span class="progress-text">{{ record.completedChapters ?? 0 }} / {{ record.chapterCount || '?' }} 章</span>
         </div>
-      </div>
-    </el-scrollbar>
+
+        <div v-if="isInterrupted(record)" class="record-error">
+          下载已中断（停在 {{ record.completedChapters ?? 0 }}/{{ record.chapterCount || '?' }} 章），已抓到的章节保存在本地
+          <el-button class="detail-link" link type="danger" @click="openFailedDialog(record)">继续下载</el-button>
+        </div>
+        <div v-else-if="record.status === 'failed'" class="record-error">
+          下载失败：{{ record.errorMessage || '未知错误' }}
+        </div>
+        <div v-else-if="record.failedChapters?.length" class="record-error">
+          {{ record.failedChapters.length }} 章失败已跳过：{{ record.failedChapters.slice(0, 5).join('、') }}{{ record.failedChapters.length > 5 ? ' 等' : '' }}
+          <el-button class="detail-link" link type="danger" @click="openFailedDialog(record)">详细信息</el-button>
+        </div>
+      </article>
+    </div>
 
     <el-dialog v-model="failedDialogVisible" title="失败章节明细" width="92%" append-to-body>
       <template v-if="interruptedHint">
@@ -315,173 +320,233 @@ function openDownload(downloadId: number) {
 <style lang="scss" scoped>
 .download-records {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
+  gap: 12px;
   height: 100%;
-  padding: 0 12px;
+  min-height: 0;
+}
 
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
+/* ---------- 顶部计数 / 清空 ---------- */
+.list-meta {
+  display: flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: space-between;
+}
 
-    .count {
-      font-size: 12px;
-      color: var(--el-text-color-secondary);
-    }
+.record-count {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--cd-text-secondary);
+}
 
-    .pending {
-      color: var(--el-color-danger);
-    }
+.clear-btn {
+  height: auto;
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+/* ---------- 记录卡片 ---------- */
+.record-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.download-card {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-card-border);
+}
+
+.dl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dl-title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--cd-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.open-btn {
+  flex: 0 0 auto;
+  height: auto;
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dl-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 16px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--cd-text-secondary);
+}
+
+.dl-meta-left {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dl-meta-time {
+  flex: 0 0 auto;
+}
+
+/* ---------- 进度 ---------- */
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 16px;
+}
+
+.progress-track {
+  flex: 1 1 0;
+  min-width: 0;
+
+  :deep(.el-progress-bar__outer) {
+    border-radius: 3px;
+    background: var(--cd-track);
   }
 
-  .record-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 4px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
+  :deep(.el-progress-bar__inner) {
+    border-radius: 3px;
+    background: var(--cd-primary);
   }
+}
 
-  .record-info {
-    flex: 1;
-    min-width: 0;
-  }
+.progress-text {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--cd-text-regular);
+}
 
-  .record-name {
-    min-width: 0;
-    flex: 1;
-    font-size: 14px;
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+/* ---------- 异常说明 ---------- */
+.record-error {
+  color: var(--cd-danger);
+  font-size: 11px;
+  line-height: 16px;
+}
 
-  .record-title-row {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    gap: 8px;
-  }
+.detail-link {
+  height: auto;
+  padding: 0;
+  font-size: inherit;
+  vertical-align: baseline;
+}
 
-  .record-meta {
-    margin-top: 2px;
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
+.empty-state {
+  flex: 1 1 auto;
+  justify-content: center;
+}
 
-  :deep(.el-progress) {
-    width: 100%;
-    margin-top: 8px;
-  }
+/* ---------- 失败明细弹窗 ---------- */
+.failed-summary {
+  margin-bottom: 10px;
+}
 
-  :deep(.el-progress__text) {
-    min-width: 0;
-  }
+.failed-book {
+  font-size: 13px;
+  font-weight: 500;
+}
 
-  .record-error {
-    margin-top: 6px;
-    color: var(--el-color-danger);
-    font-size: 12px;
-    line-height: 1.6;
-  }
+.failed-hint {
+  margin-top: 2px;
+  color: var(--cd-text-secondary);
+  font-size: 11px;
+}
 
-  .detail-link {
-    height: auto;
-    padding: 0;
-    font-size: inherit;
-    vertical-align: baseline;
-  }
+.failed-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--cd-divider);
+}
 
-  .failed-summary {
-    margin-bottom: 10px;
-  }
+.failed-reason-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--cd-primary-soft);
+  font-size: 11px;
+}
 
-  .failed-book {
-    font-size: 13px;
-    font-weight: 600;
-  }
+.reason-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  .failed-hint {
-    margin-top: 2px;
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-  }
+.reason-count {
+  flex-shrink: 0;
+  color: var(--cd-danger);
+  font-weight: 600;
+}
 
-  .failed-reasons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--el-border-color-lighter);
-  }
+.failed-advice {
+  margin-bottom: 10px;
+}
 
-  .failed-reason-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    max-width: 100%;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: var(--el-fill-color);
-    font-size: 12px;
-  }
+.failed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
 
-  .reason-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.failed-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--cd-panel);
+  box-shadow: inset 0 0 0 1px var(--cd-card-border);
+}
 
-  .reason-count {
-    flex-shrink: 0;
-    color: var(--el-color-danger);
-    font-weight: 600;
-  }
+.failed-chapter {
+  font-size: 13px;
+  font-weight: 500;
+  word-break: break-all;
+}
 
-  .failed-advice {
-    margin-bottom: 10px;
-  }
-
-  .failed-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 50vh;
-    overflow-y: auto;
-  }
-
-  .failed-item {
-    padding: 8px 10px;
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 6px;
-    background: var(--el-fill-color-lighter);
-  }
-
-  .failed-chapter {
-    font-size: 13px;
-    font-weight: 500;
-    word-break: break-all;
-  }
-
-  .failed-detail {
-    margin-top: 4px;
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-    line-height: 1.6;
-    word-break: break-all;
-  }
-
-  .open-button {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-  .record-icon {
-    flex-shrink: 0;
-    color: var(--el-text-color-secondary);
-  }
+.failed-detail {
+  margin-top: 4px;
+  color: var(--cd-text-secondary);
+  font-size: 11px;
+  line-height: 15px;
+  word-break: break-all;
 }
 </style>

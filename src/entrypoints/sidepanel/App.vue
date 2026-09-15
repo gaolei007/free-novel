@@ -1,14 +1,31 @@
 <template>
   <div class="sidepanel">
-    <!-- 分段控件：角标常驻，状态可见性不依赖当前选中项 -->
-    <el-segmented v-model="activeTab" :options="tabOptions" block class="tab-bar">
-      <template #default="{ item }">
-        <span class="tab-label">
-          <span>{{ optionLabel(item) }}</span>
-          <span v-if="showBadge(item)" class="tab-badge">{{ badgeText }}</span>
-        </span>
-      </template>
-    </el-segmented>
+    <!-- 品牌 + 分段控件 + 主题切换同处一行：品牌与切换贴齐两端，分段控件占满中间 -->
+    <div class="tab-row">
+      <img class="brand-icon" :src="brandLogo" alt="" aria-hidden="true" draggable="false" />
+
+      <!-- 分段控件：角标常驻，状态可见性不依赖当前选中项 -->
+      <el-segmented v-model="activeTab" :options="tabOptions" block class="tab-bar">
+        <template #default="{ item }">
+          <span class="tab-label">
+            <span>{{ optionLabel(item) }}</span>
+            <span v-if="showBadge(item)" class="tab-badge">{{ badgeText }}</span>
+          </span>
+        </template>
+      </el-segmented>
+
+      <!-- 亮色显月亮（点了进暗色），暗色显太阳，是状态指示而不是第四段 -->
+      <button
+        class="theme-toggle"
+        type="button"
+        :title="themeToggleHint"
+        :aria-label="themeToggleHint"
+        @click="toggleTheme"
+      >
+        <el-icon v-if="isDark"><Sunny /></el-icon>
+        <el-icon v-else><Moon /></el-icon>
+      </button>
+    </div>
 
     <div class="panel-stack">
       <SearchList v-show="activeTab === 'search'" />
@@ -20,6 +37,7 @@
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { Moon, Sunny } from '@element-plus/icons-vue'
 import SearchList from './components/SearchList.vue'
 import DownloadRecords from './components/DownloadRecords.vue'
 import SourceConfig from './components/SourceConfig.vue'
@@ -30,6 +48,7 @@ import {
   type DownloadRecord,
 } from '../../utils/storage'
 import { syncSoNovelSources } from '../../utils/sourceSync'
+import { themeMode, toggleTheme } from '../../utils/theme'
 
 // 书源规则更新较频繁（站点改版要跟着改选择器），超过 12 小时就在打开侧边栏时静默同步
 const AUTO_SYNC_INTERVAL = 12 * 60 * 60 * 1000
@@ -48,6 +67,13 @@ const tabOptions: TabOption[] = [
 const activeTab = ref('search')
 const incompleteCount = ref(0)
 const badgeText = computed(() => (incompleteCount.value > 99 ? '99+' : String(incompleteCount.value)))
+
+const isDark = computed(() => themeMode.value === 'dark')
+const themeToggleHint = computed(() => (isDark.value ? '切换到日间模式' : '切换到夜间模式'))
+
+// public/ 下的资源会原样拷到扩展根目录，用运行时路径引用即可；
+// 写成变量而不是模板里的 src 字面量，是为了绕开打包器对 <img src> 的静态解析
+const brandLogo = '/wxt.svg'
 
 /** el-segmented 的 options 既可能是字符串也可能是对象，取显示文案 */
 function optionLabel(item: unknown): string {
@@ -184,10 +210,45 @@ body {
   background: var(--cd-bg);
 }
 
+/* ---------- 顶部一行：品牌 + 分段控件 + 主题切换 ---------- */
+.tab-row {
+  display: flex;
+  flex: 0 0 38px;
+  align-items: center;
+  gap: 14px;
+}
+
+/* 品牌只留 logo，和右端主题切换各自贴齐这一行两端 */
+.brand-icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.theme-toggle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cd-text-regular);
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--cd-primary);
+  }
+}
+
 /* ---------- 分段控件（el-segmented） ---------- */
 .tab-bar {
-  flex: 0 0 38px;
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
   height: 38px;
   min-height: 38px;
   padding: 3px;
