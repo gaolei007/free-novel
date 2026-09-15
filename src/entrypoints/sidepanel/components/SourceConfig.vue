@@ -10,7 +10,7 @@
         <span v-else class="last-sync">尚未同步过</span>
       </div>
       <el-button class="sync-btn" type="primary" :loading="syncing" @click="handleSync">
-        <el-icon><Refresh /></el-icon>{{ syncing ? '同步中' : '立即同步' }}
+        {{ syncing ? '同步中' : '立即同步' }}
       </el-button>
     </section>
 
