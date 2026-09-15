@@ -63,7 +63,6 @@
       <el-empty v-else description="暂无失败记录" :image-size="48" />
       <template #footer>
         <el-button size="small" @click="failedDialogVisible = false">关闭</el-button>
-        <el-button size="small" type="primary" :loading="searching" @click="retryFailedSources">重试失败书源</el-button>
       </template>
     </el-dialog>
 
@@ -246,29 +245,6 @@ async function handleSearch() {
   await searchSources([...enabledSources.value], query, applyUpdate)
   searching.value = false
   if (!books.value.length) ElMessage.info('未搜索到结果')
-}
-
-/** 只重搜失败的书源，已成功的书源不重复请求，避免再次触发限流 */
-async function retryFailedSources() {
-  if (searching.value) return
-  const query = keyword.value.trim()
-  if (!query) return ElMessage.warning('请输入搜索关键词')
-  const targets = failedSources.value.map((item) => item.source)
-  if (!targets.length) return
-  const previousCount = targets.length
-  const kept = [...books.value]
-  searching.value = true
-  failedSources.value = []
-  const { found, failed } = await searchSources(targets, query, (currentBooks, currentFailed) => {
-    books.value = sortByRelevance([...kept, ...currentBooks], query)
-    failedSources.value = currentFailed
-  })
-  books.value = sortByRelevance([...kept, ...found], query)
-  failedSources.value = failed
-  searching.value = false
-  if (!failed.length) ElMessage.success(`已重试 ${previousCount} 个书源，全部恢复`)
-  else if (failed.length < previousCount) ElMessage.warning(`已重试 ${previousCount} 个书源，仍有 ${failed.length} 个失败`)
-  else ElMessage.error(`重试后仍有 ${failed.length} 个书源失败`)
 }
 
 /** 在当前标签页打开地址（复用当前窗口的活动标签，不新开标签），先做安全校验 */
